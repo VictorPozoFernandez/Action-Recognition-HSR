@@ -23,7 +23,9 @@ mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
 
 # PARAMETERS
-DATA_PATH = os.path.join("src/node1/MP_Data")
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+DATA_PATH = os.path.join(PATH,"MP_Data")
+MODEL_PATH = os.path.join(PATH,"action.h5")
 actions = np.array(os.listdir(DATA_PATH))
 actions_to_record = np.array(["hello"])
 threshold = 0.9
@@ -263,9 +265,9 @@ def obtain_model(actions, train = False):
 
     if train:
         model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback])
-        model.save('src/node1/action.h5')
+        model.save(MODEL_PATH)
     else:
-        model.load_weights('src/node1/action.h5')
+        model.load_weights(MODEL_PATH)
         return model
 
 
