@@ -15,9 +15,6 @@ mp_holistic = mp.solutions.holistic # Holistic model
 mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
 # PENDIENTE:  Desplazar 1 frame al analizar una nueva sequencia en vez de borrar la lista por completo,
-# Crear Github respository, 
-# Corregir full path
-# Guardar secuencias enteras en vez de frames
 # Testear el modelo usando X_test Y_test, 
 # Comparar % aciertos usando mas o menos sequencias, o mas o menos ephocs de entrenamiento. 
 
@@ -26,12 +23,11 @@ mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
 MODEL_PATH = os.path.join(PATH,"action.h5")
-actions = np.array(os.listdir(DATA_PATH))
-actions_to_record = np.array(["hello"])
+actions_to_record = np.array(["hello", "bye", "wait"])
 threshold = 0.9
 simulation = False
 train = False
-num_sequences = 30
+num_sequences = 3
 num_frames_sequence = 30
 
 def listen(model):
@@ -55,6 +51,7 @@ def callback(img_msg, args):
 
     sequence = args[0]
     sentence = args[1]
+    actions = np.array(os.listdir(DATA_PATH))
 
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         bridge = CvBridge()
@@ -87,6 +84,7 @@ def VideoCapture(model):
 
     sequence = []
     sentence = []
+    actions = np.array(os.listdir(DATA_PATH))
     
     cap = cv2.VideoCapture(0)
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
@@ -196,11 +194,10 @@ def extract_keypoints(results):
 def collect_datapoints(actions_to_record):
 
     for action in actions_to_record:
-        for sequence in range(num_sequences):
-            try:
-                os.makedirs(os.path.join(DATA_PATH, action, str(sequence)))
-            except:
-                pass
+        try:
+            os.makedirs(os.path.join(DATA_PATH, action))
+        except:
+            pass
 
     cap = cv2.VideoCapture(0) 
 
@@ -208,6 +205,7 @@ def collect_datapoints(actions_to_record):
         
         for action in actions_to_record:
             for sequence in range(num_sequences):
+                seq = []
                 for frame_num in range(num_frames_sequence):
 
                     ret, frame = cap.read()
@@ -224,33 +222,20 @@ def collect_datapoints(actions_to_record):
                     cv2.imshow('OpenCV Feed', image)
                     
                     keypoints = extract_keypoints(results)
-                    np_path = os.path.join(DATA_PATH, action, str(sequence), str(frame_num))
-                    np.save(np_path, keypoints)
+                    seq.append(keypoints)
 
                     if cv2.waitKey(10) & 0xFF == ord('q'):
                         break
+                seq = np.array(seq)
+                np_path = os.path.join(DATA_PATH, action, str(sequence))
+                np.save(np_path, seq)
                         
         cap.release()
         cv2.destroyAllWindows()
 
 
 def obtain_model(actions, train = False):
-    label_map = {label:num for num, label in enumerate(actions)}
-
-    sequences, labels = [], []
-    for action in actions:
-        for sequence in range(num_sequences):
-            seq = []
-            for frame_num in range(num_frames_sequence):
-                res = np.load(os.path.join(DATA_PATH, action, str(sequence), "{}.npy".format(frame_num)))
-                seq.append(res)
-            sequences.append(seq)
-            labels.append(label_map[action])
-
-    X = np.array(sequences)
-    Y = to_categorical(labels).astype(int)
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-
+    
     log_dir = os.path.join('Logs')
     tb_callback = TensorBoard(log_dir=log_dir)
 
@@ -264,8 +249,23 @@ def obtain_model(actions, train = False):
     model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['categorical_accuracy'])
 
     if train:
+
+        label_map = {label:num for num, label in enumerate(actions)}
+        sequences, labels = [], []
+        
+        for action in actions:
+            for sequence in range(num_sequences):
+                seq = np.load(os.path.join(DATA_PATH, action, "{}.npy".format(sequence)))
+                sequences.append(seq)
+                labels.append(label_map[action])
+
+        X = np.array(sequences)
+        Y = to_categorical(labels).astype(int)
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
+
         model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback])
         model.save(MODEL_PATH)
+        
     else:
         model.load_weights(MODEL_PATH)
         return model
@@ -278,8 +278,10 @@ if __name__ == '__main__':
         
         if train:
             collect_datapoints(actions_to_record)
+            actions = np.array(os.listdir(DATA_PATH))
             obtain_model(actions, train)
         else:
+            actions = np.array(os.listdir(DATA_PATH))
             model = obtain_model(actions, train)
             listen(model)
 
