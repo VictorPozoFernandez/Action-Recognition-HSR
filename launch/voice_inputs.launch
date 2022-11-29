@@ -1,0 +1,10 @@
+<launch>
+
+  <!-- Voice recognition -->
+  <include file="$(find ros_vosk)/launch/ros_vosk.launch"/>
+
+  <!-- Localization -->
+  <node name="tokenization_node" pkg="node1" type="tokenization_node.py" output="screen"/>
+
+
+</launch>
