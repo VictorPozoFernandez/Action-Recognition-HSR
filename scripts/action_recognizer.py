@@ -17,13 +17,13 @@ mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
-MODEL_PATH = os.path.join(PATH,"action2.h5")
+MODEL_PATH = os.path.join(PATH,"action1.h5")
 
 #Pending: Record the none action with more variance
 
 # PARAMETERS
 simulation = False
-train = False
+train = True
 num_sequences = 30
 num_frames_sequence = 30
 threshold = 0.99
@@ -235,7 +235,7 @@ def collect_datapoints(actions_to_record):
 
 def obtain_model(actions, train = False):
     
-    log_dir = os.path.join('Logs','action2')
+    log_dir = os.path.join('Logs','action1')
     tb_callback = TensorBoard(log_dir=log_dir)
 
     model = Sequential()
@@ -280,9 +280,9 @@ if __name__ == '__main__':
             print('Enter the name of the new actions to record (separated by spaces):')
             x = input()
 
-            while x == '':
-                print('No actions entered. Please try again:')
-                x = input()
+            if x == '':
+                print('No actions entered. Training the model with the already registered actions:')
+    
             action_list = x.split()
             actions_to_record = np.array(action_list)
 
