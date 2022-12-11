@@ -5,6 +5,7 @@ from cv_bridge import CvBridge
 import numpy as np
 import mediapipe as mp
 import os
+import shutil
 from geometry_msgs.msg import PoseStamped
 from sklearn.model_selection import train_test_split
 from keras.utils.np_utils import to_categorical
@@ -16,17 +17,14 @@ mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
-MODEL_PATH = os.path.join(PATH,"action.h5")
-
+MODEL_PATH = os.path.join(PATH,"action2.h5")
 
 # PARAMETERS
 simulation = False
 train = True
-actions_to_record = np.array(["coffee", "human", "none"])
 num_sequences = 30
 num_frames_sequence = 30
 threshold = 0.9
-
 
 def listen(model):
 
@@ -234,7 +232,7 @@ def collect_datapoints(actions_to_record):
 
 def obtain_model(actions, train = False):
     
-    log_dir = os.path.join('Logs','model3')
+    log_dir = os.path.join('Logs','action2')
     tb_callback = TensorBoard(log_dir=log_dir)
 
     model = Sequential()
@@ -275,9 +273,39 @@ if __name__ == '__main__':
     try:
         
         if train:
-            #collect_datapoints(actions_to_record)
-            actions = np.array(os.listdir(DATA_PATH))
-            obtain_model(actions, train)
+
+            print('Enter the name of the new actions to record (separated by spaces):')
+            x = input()
+
+            while x == '':
+                print('No actions entered. Please try again:')
+                x = input()
+            action_list = x.split()
+            actions_to_record = np.array(action_list)
+
+            for count, action in enumerate(actions_to_record):
+                if os.path.exists(os.path.join(DATA_PATH, action)):
+
+                    t = True
+                    while t == True:
+                        print("The action {} already exists. Do you want to overwrite it's content? (y/n) ".format(action))
+                        x = input()
+                        if x == 'y' or x == 'n':
+                            if x == 'y':
+                                shutil.rmtree(os.path.join(DATA_PATH, action), ignore_errors=True)
+                            if x == 'n':
+                                actions_to_record = np.delete(actions_to_record, count)
+                            t = False   
+                        else:
+                            print("Invalid return.")
+
+            if actions_to_record.shape == (0,):
+                print("No actions to record.")
+            else:        
+                collect_datapoints(actions_to_record)
+                actions = np.array(os.listdir(DATA_PATH))
+                obtain_model(actions, train)
+
         else:
             actions = np.array(os.listdir(DATA_PATH))
             model = obtain_model(actions, train)
