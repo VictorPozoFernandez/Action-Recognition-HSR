@@ -14,21 +14,19 @@ from tensorflow.python.keras.callbacks import TensorBoard
 mp_holistic = mp.solutions.holistic # Holistic model
 mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
-# PENDIENTE:  Desplazar 1 frame al analizar una nueva sequencia en vez de borrar la lista por completo,
-# Testear el modelo usando X_test Y_test, 
-# Comparar % aciertos usando mas o menos sequencias, o mas o menos ephocs de entrenamiento. 
-
-
-# PARAMETERS
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
 MODEL_PATH = os.path.join(PATH,"action.h5")
-actions_to_record = np.array(["hello", "bye", "wait"])
-threshold = 0.9
+
+
+# PARAMETERS
 simulation = False
-train = False
-num_sequences = 3
+train = True
+actions_to_record = np.array(["coffee", "human", "none"])
+num_sequences = 30
 num_frames_sequence = 30
+threshold = 0.9
+
 
 def listen(model):
 
@@ -236,7 +234,7 @@ def collect_datapoints(actions_to_record):
 
 def obtain_model(actions, train = False):
     
-    log_dir = os.path.join('Logs')
+    log_dir = os.path.join('Logs','model3')
     tb_callback = TensorBoard(log_dir=log_dir)
 
     model = Sequential()
@@ -263,7 +261,7 @@ def obtain_model(actions, train = False):
         Y = to_categorical(labels).astype(int)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
 
-        model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback])
+        model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback], validation_data=(X_test, Y_test))
         model.save(MODEL_PATH)
         
     else:
@@ -277,7 +275,7 @@ if __name__ == '__main__':
     try:
         
         if train:
-            collect_datapoints(actions_to_record)
+            #collect_datapoints(actions_to_record)
             actions = np.array(os.listdir(DATA_PATH))
             obtain_model(actions, train)
         else:
