@@ -19,12 +19,14 @@ PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
 MODEL_PATH = os.path.join(PATH,"action2.h5")
 
+#Pending: Record the none action with more variance
+
 # PARAMETERS
 simulation = False
-train = True
+train = False
 num_sequences = 30
 num_frames_sequence = 30
-threshold = 0.9
+threshold = 0.99
 
 def listen(model):
 
@@ -64,7 +66,7 @@ def callback(img_msg, args):
             res = model.predict(np.expand_dims(sequence, axis=0))[0]
             sequence = []
 
-            if res[np.argmax(res)] > threshold: 
+            if res[np.argmax(res)] >= threshold: 
                 if len(sentence) > 0: 
                     if actions[np.argmax(res)] != sentence[-1]:
                         sentence.append(actions[np.argmax(res)])
@@ -100,7 +102,8 @@ def VideoCapture(model):
             if len(sequence) == 30:
                 res = model.predict(np.expand_dims(sequence, axis=0))[0]
                 sequence = []
-                if res[np.argmax(res)] > threshold: 
+                print(res)
+                if res[np.argmax(res)] >= threshold: 
                     if len(sentence) > 0: 
                         if actions[np.argmax(res)] != sentence[-1]:
                             sentence.append(actions[np.argmax(res)])
@@ -300,7 +303,9 @@ if __name__ == '__main__':
                             print("Invalid return.")
 
             if actions_to_record.shape == (0,):
-                print("No actions to record.")
+                actions = np.array(os.listdir(DATA_PATH))
+                obtain_model(actions, train)
+
             else:        
                 collect_datapoints(actions_to_record)
                 actions = np.array(os.listdir(DATA_PATH))
