@@ -28,4 +28,5 @@ For more information about this project see the following paper: (in progress)
 **Note:** If you are using a real Toyota HSR robot instead of the simulator, you may need to scan the environment first in order to obtain a .pgm map file if you don't have it yet. To allow the ROS communication between the robot and the laptop both devices must be in the same LAN network, and type the following commands in the laptop's terminal:
 
 $export ROS_MASTER_URI=http://hsrb.local:11311
+
 $export ROS_IP=(the IP of your laptop)
