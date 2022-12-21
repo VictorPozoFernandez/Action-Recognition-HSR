@@ -17,13 +17,13 @@ mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
-MODEL_PATH = os.path.join(PATH,"action1.h5")
+MODEL_PATH = os.path.join(PATH,"action2.h5")
 
 #Pending: Record the none action with more variance
 
 # PARAMETERS
-simulation = False
-train = True
+simulation = True
+train = False
 num_sequences = 30
 num_frames_sequence = 30
 threshold = 0.99
@@ -32,51 +32,59 @@ def listen(model):
 
     rospy.init_node("action_recognizer", anonymous=True)
     rospy.loginfo("Node action_recognizer initialized. Listening...")
+    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
     
-    if simulation == True:
-        sequence = []
-        sentence = []
-        #rospy.Subscriber("/usb_cam/image_raw", Image, callback, (sequence, sentence))
-        rospy.Subscriber("/hsrb/head_rgbd_sensor/rgb/image_rect_color", Image, callback, (sequence, sentence))
-    else:
-        VideoCapture(model)
+        if simulation == True:
+            sequence = []
+            sentence = []
+            rospy.Subscriber("/usb_cam/image_raw", Image, callback, (sequence, sentence, holistic))
+            #rospy.Subscriber("/hsrb/head_rgbd_sensor/rgb/image_rect_color", Image, callback, (sequence, sentence))
+        else:
+            VideoCapture(model)
 
-    rospy.spin()
-    cv2.destroyAllWindows()
+        rospy.spin()
+        cv2.destroyAllWindows()
 
 
 def callback(img_msg, args):
 
     sequence = args[0]
     sentence = args[1]
+    holistic = args[2]
     actions = np.array(os.listdir(DATA_PATH))
 
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        bridge = CvBridge()
-        frame= bridge.imgmsg_to_cv2(img_msg)
-        image, results = mediapipe_detection(frame, holistic)
-        draw_styled_landmarks(image, results)
-        cv2.imshow('OpenCV Feed', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-        cv2.waitKey(1)
-        keypoints = extract_keypoints(results)
-        sequence.append(keypoints)
-        sequence = sequence[-30:]
+    bridge = CvBridge()
+    frame= bridge.imgmsg_to_cv2(img_msg)
+    image, results = mediapipe_detection(frame, holistic)
+    draw_styled_landmarks(image, results)
+    
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    img_msg = bridge.cv2_to_imgmsg(image, encoding="passthrough")
+    pub = rospy.Publisher('/MP_image', Image, queue_size= 10)
+    pub.publish(img_msg)
+    
 
-        if len(sequence) == 30:
-            res = model.predict(np.expand_dims(sequence, axis=0))[0]
-            sequence = []
+    # cv2.imshow('OpenCV Feed', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+    # cv2.waitKey(1)
+    keypoints = extract_keypoints(results)
+    sequence.append(keypoints)
+    sequence = sequence[-30:]
 
-            if res[np.argmax(res)] >= threshold: 
-                if len(sentence) > 0: 
-                    if actions[np.argmax(res)] != sentence[-1]:
-                        sentence.append(actions[np.argmax(res)])
-                        print(actions[np.argmax(res)])
-                        speak(actions[np.argmax(res)])
-                else:
+    if len(sequence) == 30:
+        res = model.predict(np.expand_dims(sequence, axis=0))[0]
+        sequence = []
+
+        if res[np.argmax(res)] >= threshold: 
+            if len(sentence) > 0: 
+                if actions[np.argmax(res)] != sentence[-1]:
                     sentence.append(actions[np.argmax(res)])
                     print(actions[np.argmax(res)])
                     speak(actions[np.argmax(res)])
-        
+            else:
+                sentence.append(actions[np.argmax(res)])
+                print(actions[np.argmax(res)])
+                speak(actions[np.argmax(res)])
+    
 
 def VideoCapture(model):
 
