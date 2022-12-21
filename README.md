@@ -4,6 +4,8 @@ For more information about this project see the following paper: (in progress)
 
 ## Requirements:
 
+
+  - Python 3.8.10
   - ROS Noetic (http://wiki.ros.org/noetic/Installation/Ubuntu)
   - OpenCV 
   - Numpy 
