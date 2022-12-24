@@ -12,6 +12,7 @@ from keras.utils.np_utils import to_categorical
 from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.layers import LSTM, Dense
 from tensorflow.python.keras.callbacks import TensorBoard
+import time
 mp_holistic = mp.solutions.holistic # Holistic model
 mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
@@ -60,7 +61,7 @@ def callback(img_msg, args):
     
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     img_msg = bridge.cv2_to_imgmsg(image, encoding="passthrough")
-    pub = rospy.Publisher('/MP_image', Image, queue_size= 10)
+    pub = rospy.Publisher('/MP_image', Image, queue_size= 30)
     pub.publish(img_msg)
     
 
@@ -121,14 +122,14 @@ def VideoCapture(model):
                         sentence.append(actions[np.argmax(res)])
                         print(actions[np.argmax(res)])
                         speak(actions[np.argmax(res)])
-
+        
         cap.release()
         cv2.destroyAllWindows()
 
 
 def speak(msg):
 
-    pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size= 10)
+    pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size= 1)
     rospy.Rate(1)
 
     if msg == "coffee":
@@ -200,6 +201,7 @@ def extract_keypoints(results):
 
 def collect_datapoints(actions_to_record):
 
+
     for action in actions_to_record:
         try:
             os.makedirs(os.path.join(DATA_PATH, action))
@@ -207,7 +209,8 @@ def collect_datapoints(actions_to_record):
             pass
 
     cap = cv2.VideoCapture(0) 
-
+    rospy.init_node("collecting_Datapoints", anonymous=True)
+    rate = rospy.Rate(12)
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         
         for action in actions_to_record:
@@ -230,12 +233,14 @@ def collect_datapoints(actions_to_record):
                     
                     keypoints = extract_keypoints(results)
                     seq.append(keypoints)
+                    rate.sleep()
 
                     if cv2.waitKey(10) & 0xFF == ord('q'):
                         break
                 seq = np.array(seq)
                 np_path = os.path.join(DATA_PATH, action, str(sequence))
                 np.save(np_path, seq)
+    
                         
         cap.release()
         cv2.destroyAllWindows()
@@ -243,7 +248,7 @@ def collect_datapoints(actions_to_record):
 
 def obtain_model(actions, train = False):
     
-    log_dir = os.path.join('Logs','action1')
+    log_dir = os.path.join('Logs','action2')
     tb_callback = TensorBoard(log_dir=log_dir)
 
     model = Sequential()
@@ -270,7 +275,8 @@ def obtain_model(actions, train = False):
         Y = to_categorical(labels).astype(int)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
 
-        model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback], validation_data=(X_test, Y_test))
+        #model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback], validation_data=(X_test, Y_test)) TENSORBOARD DOESNT WORK
+        model.fit(X_train, Y_train, epochs=100, validation_data=(X_test, Y_test))
         model.save(MODEL_PATH)
         
     else:
