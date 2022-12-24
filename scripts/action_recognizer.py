@@ -25,7 +25,7 @@ MODEL_PATH = os.path.join(PATH,"action2.h5")
 # PARAMETERS
 simulation = True
 train = False
-num_sequences = 30
+num_sequences = 90
 num_frames_sequence = 30
 threshold = 0.99
 
