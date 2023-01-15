@@ -12,22 +12,21 @@ from keras.utils.np_utils import to_categorical
 from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.layers import LSTM, Dense
 from tensorflow.python.keras.callbacks import TensorBoard
+import keras
 import time
 mp_holistic = mp.solutions.holistic # Holistic model
 mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
 PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 DATA_PATH = os.path.join(PATH,"MP_Data")
-MODEL_PATH = os.path.join(PATH,"action2.h5")
-
-#Pending: Record the none action with more variance
+MODEL_PATH = os.path.join(PATH,"action4.h5") #To use action3 model remember to cut the none1
 
 # PARAMETERS
 simulation = True
 train = False
 num_sequences = 90
 num_frames_sequence = 30
-threshold = 0.99
+threshold = 0.999
 
 def listen(model):
 
@@ -79,11 +78,13 @@ def callback(img_msg, args):
             if len(sentence) > 0: 
                 if actions[np.argmax(res)] != sentence[-1]:
                     sentence.append(actions[np.argmax(res)])
-                    print(actions[np.argmax(res)])
+                    if actions[np.argmax(res)] != "none1":
+                        print(actions[np.argmax(res)])
                     speak(actions[np.argmax(res)])
             else:
                 sentence.append(actions[np.argmax(res)])
-                print(actions[np.argmax(res)])
+                if actions[np.argmax(res)] != "none1":
+                    print(actions[np.argmax(res)])
                 speak(actions[np.argmax(res)])
     
 
@@ -248,8 +249,8 @@ def collect_datapoints(actions_to_record):
 
 def obtain_model(actions, train = False):
     
-    log_dir = os.path.join('Logs','action2')
-    tb_callback = TensorBoard(log_dir=log_dir)
+    log_dir = os.path.join('Logs','action4')
+    tb_callback = keras.callbacks.TensorBoard(log_dir=log_dir)
 
     model = Sequential()
     model.add(LSTM(64, return_sequences=True, activation='relu', input_shape=(30,258)))
@@ -275,8 +276,8 @@ def obtain_model(actions, train = False):
         Y = to_categorical(labels).astype(int)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
 
-        #model.fit(X_train, Y_train, epochs=100, callbacks=[tb_callback], validation_data=(X_test, Y_test)) TENSORBOARD DOESNT WORK
-        model.fit(X_train, Y_train, epochs=100, validation_data=(X_test, Y_test))
+        model.fit(X_train, Y_train, epochs=300, callbacks=[tb_callback], validation_data=(X_test, Y_test)) 
+        #model.fit(X_train, Y_train, epochs=100, validation_data=(X_test, Y_test))
         model.save(MODEL_PATH)
         
     else:
