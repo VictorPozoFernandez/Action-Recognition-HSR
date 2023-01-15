@@ -6,7 +6,9 @@ import numpy as np
 import mediapipe as mp
 import os
 import shutil
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Pose
+from nav_msgs.msg import Odometry
+from std_msgs.msg import String
 from sklearn.model_selection import train_test_split
 from keras.utils.np_utils import to_categorical
 from tensorflow.python.keras.models import Sequential
@@ -39,12 +41,20 @@ def listen(model):
             sentence = []
             rospy.Subscriber("/usb_cam/image_raw", Image, callback, (sequence, sentence, holistic))
             #rospy.Subscriber("/hsrb/head_rgbd_sensor/rgb/image_rect_color", Image, callback, (sequence, sentence))
+            current_pos = Pose()
+            saved_pos = Pose()
+            rospy.Subscriber("/hsrb/odom_ground_truth", Odometry, callback_odom)
+            rospy.Publisher('/task_done', String, queue_size= 1)
+            rospy.Subscriber("/task_done", String, callback_task_done)
         else:
             VideoCapture(model)
 
         rospy.spin()
         cv2.destroyAllWindows()
 
+def callback_odom(msg):
+    global current_pos 
+    current_pos = msg.pose.pose
 
 def callback(img_msg, args):
 
@@ -133,7 +143,12 @@ def speak(msg):
     pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size= 1)
     rospy.Rate(1)
 
+    global current_pos
+    global saved_pos
+
     if msg == "coffee":
+        saved_pos = current_pos
+
         goal = PoseStamped()
 
         goal.header.seq = 1
@@ -153,6 +168,8 @@ def speak(msg):
         rospy.Rate(1)
     
     elif msg == "human":
+        saved_pos = current_pos
+
         goal = PoseStamped()
 
         goal.header.seq = 1
@@ -174,6 +191,32 @@ def speak(msg):
     else:
         pass
 
+def callback_task_done(msg):
+    global saved_pos
+
+    pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size= 1)
+    rospy.Rate(1)
+
+    if msg.data == "done":
+
+        print("Going home")
+        goal = PoseStamped()
+
+        goal.header.seq = 1
+        goal.header.stamp = rospy.Time.now()
+        goal.header.frame_id = "map"
+
+        goal.pose.position.x = float(saved_pos.position.x + 2.42)
+        goal.pose.position.y = float(saved_pos.position.y + 3.44)
+        goal.pose.position.z = 0.0
+
+        goal.pose.orientation.x = 0.0
+        goal.pose.orientation.y = 0.0
+        goal.pose.orientation.z = float(saved_pos.orientation.z + 0.62)
+        goal.pose.orientation.w = float(saved_pos.orientation.w - 0.26)
+
+        pub.publish(goal)
+        rospy.Rate(1)
 
 def mediapipe_detection(image, model):
 
